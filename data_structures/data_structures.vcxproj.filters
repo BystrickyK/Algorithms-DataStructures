@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="week3_parallel_processing_simulation.cpp">
+    <ClCompile Include="week3_merging_tables.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
