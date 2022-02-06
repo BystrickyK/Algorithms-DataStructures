@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="week6_tree-orders.cpp">
+    <ClCompile Include="week6_is_bst.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
