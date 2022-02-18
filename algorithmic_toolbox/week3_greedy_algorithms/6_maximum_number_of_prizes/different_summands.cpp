@@ -4,9 +4,16 @@
 using std::vector;
 
 vector<int> optimal_summands(int n) {
-  vector<int> summands;
-  //write your code here
-  return summands;
+    vector<int> summands;
+    for (int i = 0; (n-(i+1)) >= 0; ++i)
+    {
+        summands.push_back(i + 1);
+        n -= (i+1);
+    }
+
+    summands.back() += n;  // give the rest of n to the last element
+
+    return summands;
 }
 
 int main() {
