@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <array>
 #include <vector>
 #include <set>
@@ -10,6 +11,8 @@
 #define DEBUG_FINAL_ONLY
 
 #define DMatrix std::vector<std::vector<Node>>
+
+typedef std::pair<std::vector<int>, std::vector<int>> string_pair;
 
 enum PreviousOperations
 {
@@ -45,19 +48,23 @@ void PrintNode(const Node& node)
   std::cout << node.D << "|";
 }
 
-void PrintDMatrix(const DMatrix& matrix, const std::string& str1, const std::string& str2)
+void PrintDMatrix(const DMatrix& matrix, const std::vector<int>& str1, const std::vector<int>& str2)
 {
-  std::cout << "                  ";
+  // std::cout << "                  ";
+  std::cout << "\t\t\t";
   for(uint32_t col_idx = 0; col_idx < matrix[0].size(); ++col_idx)
-    std::cout << str2[col_idx] << "      ";
+    // std::cout << str2[col_idx] << "      ";
+    std::cout << str2[col_idx] << "\t";
   std::cout << "\n\n";
 
   for(uint32_t row_idx = 0; row_idx < matrix.size(); ++row_idx)
   {
     if (row_idx == 0)
-      std::cout << "      ";
+      // std::cout << "      ";
+      std::cout << "\t\t\t";
     else
-      std::cout << str1[row_idx-1] << "     ";
+      // std::cout << str1[row_idx-1] << "     ";
+      std::cout << str1[row_idx-1] << "\t\t\t";
 
     for(uint32_t col_idx = 0; col_idx < matrix[0].size(); ++col_idx)
     {
@@ -91,8 +98,8 @@ void initialize_D_matrix(DMatrix& matrix)
 }
 
 void evaluate_node(DMatrix& matrix,
-                   const std::string &str1,
-                   const std::string &str2,
+                   const std::vector<int> &str1,
+                   const std::vector<int> &str2,
                    uint32_t row_idx, uint32_t col_idx)
  {
   Node& current_node = matrix[row_idx][col_idx];
@@ -132,9 +139,7 @@ void evaluate_node(DMatrix& matrix,
   #endif
  }
 
-
-
-int edit_distance(const std::string &str1, const std::string &str2)
+DMatrix edit_distance_matrix(const std::vector<int> &str1, const std::vector<int> &str2)
 {
   Node void_node;
   void_node.D = 0;
@@ -149,20 +154,95 @@ int edit_distance(const std::string &str1, const std::string &str2)
       evaluate_node(matrix, str1, str2, row_idx, col_idx);
     }
   }
-
   #if defined DEBUG_FINAL_ONLY
   PrintDMatrix(matrix, str1, str2);
   #endif
 
-  uint32_t row_size = matrix.size();
-  uint32_t col_size = matrix[0].size();
-  return matrix[row_size-1][col_size-1].D; // Bottom right node
+  return matrix;
+}
+
+uint32_t Align_CountMatches(const DMatrix& matrix, const std::vector<int>& str1, const std::vector<int>& str2)
+{
+  // Starting index == bottom right
+  const uint32_t row_size = matrix.size();
+  const uint32_t col_size = matrix[0].size();
+  uint32_t row_idx = row_size-1;
+  uint32_t col_idx = col_size-1;
+  uint32_t match_count = 0;
+  #if defined DEBUG
+  std::cout << row_idx << "\t|\t" << col_idx << "\n";
+  #endif
+
+  string_pair aligned_strings;
+
+  while(row_idx != 0 || col_idx != 0)
+  {
+    const Node& current_node = matrix[row_idx][col_idx];
+    auto prev_ops = current_node.previous_operations;
+    if (row_idx>0 && col_idx>0 && prev_ops.find(Match) != prev_ops.end())
+    {
+      ++match_count;
+      aligned_strings.first.push_back(str1[(row_idx--)-1]);
+      aligned_strings.second.push_back(str2[(col_idx--)-1]);
+    }
+    else
+    {
+      if (row_idx>0 && prev_ops.find(Deletion) != prev_ops.end())
+      {
+      aligned_strings.first.push_back(str1[(row_idx--)-1]);
+      aligned_strings.second.push_back(0);
+      }
+      else if (col_idx>0 && prev_ops.find(Insertion) != prev_ops.end())
+      {
+        aligned_strings.first.push_back(0);
+        aligned_strings.second.push_back(str2[(col_idx--)-1]);
+      }
+      else if (row_idx>0 && col_idx>0 && prev_ops.find(Mismatch) != prev_ops.end())
+      {
+        aligned_strings.first.push_back(str1[(row_idx--)-1]);
+        aligned_strings.second.push_back(str2[(col_idx--)-1]);
+      }
+    }
+  #if defined DEBUG
+  std::cout << row_idx << " | " << col_idx << "\n";
+  #endif
+  }
+
+  #if defined DEBUG_FINAL_ONLY
+  std::reverse(aligned_strings.first.begin(), aligned_strings.first.end());
+  std::reverse(aligned_strings.second.begin(), aligned_strings.second.end());
+  for (auto& symbol : aligned_strings.first)
+    std::cout << symbol << "\t";
+  std::cout << "\n";
+  for (auto& symbol : aligned_strings.second)
+    std::cout << symbol << "\t";
+  std::cout << "\n";
+  #endif
+  return match_count;
 }
 
 int main() {
-  std::string str1;
-  std::string str2;
-  std::cin >> str1 >> str2;
-  std::cout << edit_distance(str1, str2) << std::endl;
+  std::vector<int> str1;
+  std::vector<int> str2;
+  int symbol;
+
+  size_t n;
+  std::cin >> n;
+  for (size_t i = 0; i < n; i++) {
+    std::cin >> symbol;
+    str1.push_back(symbol);
+  }
+
+  size_t m;
+  std::cin >> m;
+  for (size_t i = 0; i < m; i++) {
+    std::cin >> symbol;
+    str2.push_back(symbol);
+  }
+
+  const DMatrix matrix = edit_distance_matrix(str1, str2);
+  uint32_t matches = Align_CountMatches(matrix, str1, str2);
+
+  std::cout << matches;
   return 0;
 }
