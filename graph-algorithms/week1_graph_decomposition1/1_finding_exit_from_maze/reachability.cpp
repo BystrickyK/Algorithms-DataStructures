@@ -40,7 +40,6 @@ class GraphExplorer {
     const size_t node_count_;
 
     vector<bool> visited;
-
 };
 
 int main() {

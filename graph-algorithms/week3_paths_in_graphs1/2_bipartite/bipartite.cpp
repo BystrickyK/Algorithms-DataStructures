@@ -20,11 +20,11 @@ struct Node;
 struct Node
 {
     Node(uint64_t index):
-      m_Index(index), m_Color(false), m_Explored(false){}
+      m_Index(index), m_Color(false), m_Reachable(false){}
 
     uint64_t m_Index;
     bool m_Color;
-    bool m_Explored;
+    bool m_Reachable;
 
     list<Edge> m_Edges; // nodes that this node points to
 };
@@ -41,10 +41,10 @@ struct Edge{
 
 typedef vector<Node> Graph;
 
-class ColorExplorer{
+class OptimalExchange{
   public:
 
-    ColorExplorer(Graph&& graph):
+    OptimalExchange(Graph&& graph):
     m_Graph(std::move(graph)){}
     
     bool IsBipartite(uint64_t start_idx){
@@ -82,8 +82,8 @@ class ColorExplorer{
       for(const Edge& edge: curr_node.m_Edges){
 
         Node& adj_node = *edge.m_pAdjNode;        
-        if (!adj_node.m_Explored){ // Node not yet explored
-          adj_node.m_Explored = true;
+        if (!adj_node.m_Reachable){ // Node not yet explored
+          adj_node.m_Reachable = true;
           adj_node.m_Color = !curr_node.m_Color;
           m_DFSQueue.push(&adj_node);
           m_UnexploredIdxs.erase(adj_node.m_Index);
@@ -117,7 +117,7 @@ int main() {
     to_node.m_Edges.emplace_back(Edge(&from_node));
   }
 
-  ColorExplorer CEx(std::move(graph));
+  OptimalExchange CEx(std::move(graph));
   bool isBipartite = CEx.IsBipartite(0);
   std::cout << isBipartite;
   return 0;

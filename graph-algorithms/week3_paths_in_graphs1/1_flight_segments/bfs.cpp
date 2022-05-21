@@ -61,10 +61,10 @@ struct SPTreeNode{
 typedef unordered_map<uint64_t, SPTreeNode> SPTree;
 typedef vector<Node> Graph;
 
-class ColorExplorer{
+class OptimalExchange{
   public:
 
-    ColorExplorer(Graph&& graph):
+    OptimalExchange(Graph&& graph):
     m_Graph(std::move(graph)){}
     
     SPTree& ConstructSPTree(uint64_t start_idx, uint64_t end_idx){
@@ -156,7 +156,7 @@ int main() {
     to_node.m_Edges.emplace_back(Edge(&from_node));
   }
 
-  ColorExplorer PEx(std::move(graph));
+  OptimalExchange PEx(std::move(graph));
   uint64_t start, end;
   std::cin >> start >> end;
   int64_t path_len = PEx.GetShortestPathLength(start - 1, end - 1);
