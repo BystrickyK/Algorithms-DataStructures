@@ -89,7 +89,7 @@ typedef vector<Node> Graph;
 class DijkstraSP{
   public:
 
-    DijkstraSP(Graph& graph):
+    DijkstraSP(Graph&& graph):
     m_Graph(std::move(graph)){}
 
     int64_t ComputeShortestPath(uint64_t source_idx, uint64_t destination_index){
