@@ -137,9 +137,6 @@ struct PruferTrees{
     list<uint64_t> prufer_sequence;
     for(uint64_t idx: m_PruferSequences[prufer_index])
       prufer_sequence.push_back(idx);
-    set<uint64_t> prufer_sequence_indices;
-    for (uint64_t idx: prufer_sequence)
-      prufer_sequence_indices.insert(idx);
 
     const uint64_t N = m_Graph.Nodes.size();
     const uint64_t sequence_length = N - 2;
@@ -151,14 +148,14 @@ struct PruferTrees{
     for(uint64_t i = 0; i < sequence_length; ++i){
       auto node1_idx_it = vertices.begin();
       for(; // find minimal index that is in V but not in P
-          std::find(prufer_sequence_indices.begin(), prufer_sequence_indices.end(), *node1_idx_it) != prufer_sequence_indices.end();
+          std::find(prufer_sequence.begin(), prufer_sequence.end(), *node1_idx_it) != prufer_sequence.end();
           ++node1_idx_it);
 
       uint64_t node1_idx = *node1_idx_it;
       Node& node1 = m_Graph.Nodes[node1_idx];
       Node& node2 = m_Graph.Nodes[prufer_sequence.front()];
-      tree_edges.push_back(FindEdge(m_Graph.Nodes[*node1_idx_it], node2));
-      vertices.erase(node1_idx_it);
+      tree_edges.push_back(FindEdge(node1, node2));
+      vertices.erase(node1_idx);
       prufer_sequence.pop_front();
     }
     
@@ -183,13 +180,22 @@ struct PruferTrees{
   double FindMinWeight(){
     GeneratePruferSequences();
     double min_weight_sum = INFINITY;
+    uint64_t optimal_prufer_idx;
     for(uint64_t prufer_idx = 0; prufer_idx < m_PruferSequences.size(); ++prufer_idx){
       vector<Edge*> tree_edges = GetTreeEdges(prufer_idx);
       double weight_sum = 0;
       for(const Edge* const p_edge: tree_edges)
         weight_sum += p_edge->GetWeight();
-      min_weight_sum = (weight_sum < min_weight_sum) ? weight_sum : min_weight_sum;
+      if (weight_sum < min_weight_sum){
+        min_weight_sum = weight_sum;
+        optimal_prufer_idx = prufer_idx;
+      }
     }
+    std::cout << "Optimal (minimal) weight via BF: " << min_weight_sum << "\n";
+    vector<Edge*> optimal_tree = GetTreeEdges(optimal_prufer_idx);
+    for(Edge* const p_edge: optimal_tree)
+      std::cout << p_edge->GetSourceNodePtr()->m_Index << " <-> " << p_edge->GetDestinationNodePtr()->m_Index << "\n";
+    std::cout << std::endl;
     return min_weight_sum;
   }
 
@@ -283,7 +289,7 @@ class NodeConnector{
 
 
 int main() {
-  size_t n_points;
+  size_t n_points = 5;
   std::cin >> n_points;
 
   Graph graph;
@@ -319,8 +325,9 @@ int main() {
   double min_weight_bf = NC.TotalWeightBruteForce();
   NC.PrimAlgorithm();
   double min_weight_prim = NC.TotalWeight();
-  // NC.PrintGraph();
-  std::cout << std::setprecision(10) << min_weight_bf << std::endl;
-  std::cout << std::setprecision(10) << min_weight_prim << std::endl;
+  NC.PrintGraph();
+  std::cout << "\n";
+  std::cout << "Brute force: " << std::setprecision(10) << min_weight_bf << std::endl;
+  std::cout << "Prim: " << std::setprecision(10) << min_weight_prim << std::endl;
   return 0;
 }
