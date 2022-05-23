@@ -1,4 +1,6 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
 #include <vector>
 #include <list>
 #include <queue>
@@ -6,6 +8,9 @@
 #include <iomanip>
 #include <set>
 #include <algorithm>
+
+// #define TEST
+// #define PRINT
 
 using std::vector;
 using std::priority_queue;
@@ -191,11 +196,13 @@ struct PruferTrees{
         optimal_prufer_idx = prufer_idx;
       }
     }
-    std::cout << "Optimal (minimal) weight via BF: " << min_weight_sum << "\n";
-    vector<Edge*> optimal_tree = GetTreeEdges(optimal_prufer_idx);
-    for(Edge* const p_edge: optimal_tree)
-      std::cout << p_edge->GetSourceNodePtr()->m_Index << " <-> " << p_edge->GetDestinationNodePtr()->m_Index << "\n";
-    std::cout << std::endl;
+    #ifdef PRINT 
+      std::cout << "Optimal (minimal) weight via BF: " << min_weight_sum << "\n";
+      vector<Edge*> optimal_tree = GetTreeEdges(optimal_prufer_idx);
+      for(Edge* const p_edge: optimal_tree)
+        std::cout << p_edge->GetSourceNodePtr()->m_Index << " <-> " << p_edge->GetDestinationNodePtr()->m_Index << "\n";
+      std::cout << std::endl;
+    #endif
     return min_weight_sum;
   }
 
@@ -218,21 +225,23 @@ class NodeConnector{
       }
       m_Graph.Nodes[0].m_Priority = 0;
 
-      while(!m_PriorityQueue.empty())
-        m_PriorityQueue.pop();
-
-      m_PriorityQueue.push(&m_Graph.Nodes[0]);
+      m_PriorityQueue.clear();
+      m_PriorityQueue.insert(&m_Graph.Nodes[0]);
 
       while(!m_PriorityQueue.empty()){
         // Extract the highest priority node
-        Node* p_new_node = m_PriorityQueue.top();
-        m_PriorityQueue.pop();
+        Node* p_new_node = *m_PriorityQueue.begin();
+        m_PriorityQueue.erase(m_PriorityQueue.begin());
         
         // Check if the node isn't already connected to the tree
         if (p_new_node->m_Connected)
           continue;
         else
           p_new_node->m_Connected = true;
+
+        #ifdef PRINT
+        std::cout << "Connected node " << p_new_node->m_Index << " at cost " << p_new_node->m_Priority << "\n";
+        #endif
 
         // Check neighbor nodes, conditionally update their priorities
         for(Edge* edge: p_new_node->m_Edges){
@@ -243,9 +252,12 @@ class NodeConnector{
             p_dest_node = edge->GetDestinationNodePtr();
 
           if ((!p_dest_node->m_Connected) && (p_dest_node->m_Priority > edge->GetWeight())){
+            auto p_dest_node_set_it = std::find(m_PriorityQueue.begin(), m_PriorityQueue.end(), p_dest_node);
+            if (p_dest_node_set_it != m_PriorityQueue.end())
+              m_PriorityQueue.erase(p_dest_node_set_it);
             p_dest_node->m_pPreviousNode = p_new_node;
             p_dest_node->m_Priority = edge->GetWeight();
-            m_PriorityQueue.push(p_dest_node);
+            m_PriorityQueue.insert(p_dest_node);
           }
         }
       }
@@ -278,56 +290,117 @@ class NodeConnector{
 
     struct NodeComparator{
       bool operator()(const Node* const lhs, const Node* const rhs) const{
-        return (lhs->m_Priority) > (rhs->m_Priority);
+        return (((lhs->m_Priority) <= (rhs->m_Priority)));
       }
     };
-    priority_queue<Node*, vector<Node*>, NodeComparator> m_PriorityQueue;
+    // priority_queue<Node*, vector<Node*>, NodeComparator> m_PriorityQueue;
+    set<Node*, NodeComparator> m_PriorityQueue;
 
     PruferTrees m_PruferTrees;
 };
 
-
-
 int main() {
-  size_t n_points = 5;
-  std::cin >> n_points;
+  #ifdef TEST
+    bool cont = true;
+    while(cont){
+      size_t n_points = 6;
+      // std::cin >> n_points;
 
-  Graph graph;
-  graph.Nodes.reserve(n_points);
-  graph.Edges.reserve(n_points/2*(n_points-1) + n_points%2*((n_points-1)/2));
+      Graph graph;
+      graph.Nodes.reserve(n_points);
+      graph.Edges.reserve(n_points/2*(n_points-1) + n_points%2*((n_points-1)/2));
 
-  for (size_t node_idx = 0; node_idx < n_points; ++node_idx){
-    double x, y;
-    std::cin >> x >> y;
+      for (size_t node_idx = 0; node_idx < n_points; ++node_idx){
+        double x, y;
+        x = std::rand() % 10;
+        y = std::rand() % 10;
+        // std::cin >> x >> y;
 
-    // Create node
-    graph.Nodes.push_back(Node(node_idx));
-    Node& this_node = graph.Nodes[node_idx];
-    this_node.SetCoords(x, y);
+        // Create node
+        graph.Nodes.push_back(Node(node_idx));
+        Node& this_node = graph.Nodes[node_idx];
+        this_node.SetCoords(x, y);
 
-    // Connect this node to all the other created nodes
-    for(Node& other_node: graph.Nodes){
-      if (this_node.m_Index == other_node.m_Index) continue;
+        // Connect this node to all the other created nodes
+        for(Node& other_node: graph.Nodes){
+          if (this_node.m_Index == other_node.m_Index) continue;
 
-      Edge edge(&this_node, &other_node);
-      const double distance = Coordinates::Distance(this_node.m_Coords, other_node.m_Coords);
-      edge.SetWeight(distance);
+          Edge edge(&this_node, &other_node);
+          const double distance = Coordinates::Distance(this_node.m_Coords, other_node.m_Coords);
+          edge.SetWeight(distance);
 
-      graph.Edges.push_back(std::move(edge));
-      Edge* p_last_edge = &*--graph.Edges.end();
-      this_node.m_Edges.push_back(p_last_edge);
-      other_node.m_Edges.push_back(p_last_edge);
-      // !!! If the order of elements in graph.Edges changes, the nodes in Node.m_Edges will have wrong edges 
+          graph.Edges.push_back(std::move(edge));
+          Edge* p_last_edge = &*--graph.Edges.end();
+          this_node.m_Edges.push_back(p_last_edge);
+          other_node.m_Edges.push_back(p_last_edge);
+          // !!! If the order of elements in graph.Edges changes, the nodes in Node.m_Edges will have wrong edges 
+        }
+      }
+
+      NodeConnector NC(std::move(graph));
+      double min_weight_bf = NC.TotalWeightBruteForce();
+      NC.PrimAlgorithm();
+      double min_weight_prim = NC.TotalWeight();
+      NC.PrintGraph();
+      std::cout << "\n";
+      std::cout << "Brute force: " << std::setprecision(10) << min_weight_bf << std::endl;
+      std::cout << "Prim: " << std::setprecision(10) << min_weight_prim << std::endl;
+      if (min_weight_bf > 1.0001*min_weight_prim){
+        std::cout << "BF result worse than Prim\n";
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+      }
+      else if (min_weight_bf * 1.0001 < min_weight_prim){
+        std::cout << "BF result better than Prim\n";
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      std::cout << "\n ___________________________ \n";
     }
-  }
+  #endif
+  #ifndef TEST
+    size_t n_points;
+    std::cin >> n_points;
 
-  NodeConnector NC(std::move(graph));
-  double min_weight_bf = NC.TotalWeightBruteForce();
-  NC.PrimAlgorithm();
-  double min_weight_prim = NC.TotalWeight();
-  NC.PrintGraph();
-  std::cout << "\n";
-  std::cout << "Brute force: " << std::setprecision(10) << min_weight_bf << std::endl;
-  std::cout << "Prim: " << std::setprecision(10) << min_weight_prim << std::endl;
+    Graph graph;
+    graph.Nodes.reserve(n_points);
+    graph.Edges.reserve(n_points/2*(n_points-1) + n_points%2*((n_points-1)/2));
+
+    for (size_t node_idx = 0; node_idx < n_points; ++node_idx){
+      double x, y;
+      x = std::rand() % 4;
+      y = std::rand() % 4;
+      std::cin >> x >> y;
+
+      // Create node
+      graph.Nodes.push_back(Node(node_idx));
+      Node& this_node = graph.Nodes[node_idx];
+      this_node.SetCoords(x, y);
+
+      // Connect this node to all the other created nodes
+      for(Node& other_node: graph.Nodes){
+        if (this_node.m_Index == other_node.m_Index) continue;
+
+        Edge edge(&this_node, &other_node);
+        const double distance = Coordinates::Distance(this_node.m_Coords, other_node.m_Coords);
+        edge.SetWeight(distance);
+
+        graph.Edges.push_back(std::move(edge));
+        Edge* p_last_edge = &*--graph.Edges.end();
+        this_node.m_Edges.push_back(p_last_edge);
+        other_node.m_Edges.push_back(p_last_edge);
+        // !!! If the order of elements in graph.Edges changes, the nodes in Node.m_Edges will have wrong edges 
+      }
+    }
+
+    NodeConnector NC(std::move(graph));
+    NC.PrimAlgorithm();
+    double min_weight_prim = NC.TotalWeight();
+    std::cout << std::setprecision(10) << min_weight_prim << std::endl;
+    #ifdef PRINT
+    NC.PrintGraph();
+    double min_weight_bf = NC.TotalWeightBruteForce();
+    std::cout << std::setprecision(10) << min_weight_bf;
+    #endif
+  #endif
   return 0;
 }
