@@ -51,15 +51,15 @@ class Edge{
     }
 
     bool RelaxEdge(){
-    const int64_t distanceToDestFromThis = m_pSourceNode->m_Distance + m_Weight;
-    const int64_t distanceToDest = m_pDestinationNode->m_Distance;
-      if (distanceToDestFromThis < distanceToDest){
-        m_pDestinationNode->m_pPreviousNode = m_pSourceNode;
-        m_pDestinationNode->m_Distance = distanceToDestFromThis;
-        return true; // Edge was relaxed
-      }
-      else
-        return false; // Edge wasn't relaxed
+      const int64_t distanceToDestFromThis = m_pSourceNode->m_Distance + m_Weight;
+      const int64_t distanceToDest = m_pDestinationNode->m_Distance;
+        if (distanceToDestFromThis < distanceToDest){
+          m_pDestinationNode->m_pPreviousNode = m_pSourceNode;
+          m_pDestinationNode->m_Distance = distanceToDestFromThis;
+          return true; // Edge was relaxed
+        }
+        else
+          return false; // Edge wasn't relaxed
     }
 
     Node* GetDestinationNodePtr(){
@@ -86,10 +86,10 @@ class Edge{
 
 typedef vector<Node> Graph;
 
-class DijkstraSP{
+class Graph{
   public:
 
-    DijkstraSP(Graph&& graph):
+    Graph(Graph&& graph):
     m_Graph(std::move(graph)){}
 
     int64_t ComputeShortestPath(uint64_t source_idx, uint64_t destination_index){
@@ -150,7 +150,6 @@ class DijkstraSP{
       for (Node& node: m_Graph){
         node.m_Distance = INT64_MAX; // ~ inf
         node.m_pPreviousNode = nullptr;
-        node.m_Reachable = false;
       }
     }
 
@@ -182,7 +181,7 @@ int main() {
     // to_node.m_Edges.emplace_back(Edge(&to_node, &from_node)); // if undirected
   }
 
-  DijkstraSP DSP(std::move(graph));
+  Graph DSP(std::move(graph));
   uint64_t source, destination;
   std::cin >> source >> destination;
   std::cout << DSP.ComputeShortestPath(source-1, destination-1) << std::endl;

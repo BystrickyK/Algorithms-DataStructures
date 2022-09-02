@@ -9,7 +9,7 @@
 #include <set>
 #include <algorithm>
 
-// #define TEST
+#define TEST
 // #define PRINT
 
 using std::vector;
@@ -87,7 +87,7 @@ class Edge{
 
 struct Graph{
   vector<Node> Nodes;
-  vector<Edge> Edges;
+  vector<Edge> NodeEdges;
 };  
 
 class CartesianProduct{
@@ -173,7 +173,7 @@ struct PruferTrees{
 
   Edge* FindEdge(const Node& node1, const Node& node2){
       Edge* edge12;
-      for(Edge& edge: m_Graph.Edges){
+      for(Edge& edge: m_Graph.NodeEdges){
         if (edge.GetSourceNodePtr()->m_Index == node1.m_Index && edge.GetDestinationNodePtr()->m_Index == node2.m_Index ||
             edge.GetDestinationNodePtr()->m_Index == node1.m_Index && edge.GetSourceNodePtr()->m_Index == node2.m_Index){
               return &edge;
@@ -303,17 +303,17 @@ int main() {
   #ifdef TEST
     bool cont = true;
     while(cont){
-      size_t n_points = 6;
+      size_t n_points = 2500;
       // std::cin >> n_points;
 
       Graph graph;
       graph.Nodes.reserve(n_points);
-      graph.Edges.reserve(n_points/2*(n_points-1) + n_points%2*((n_points-1)/2));
+      graph.NodeEdges.reserve(n_points/2*(n_points-1) + n_points%2*((n_points-1)/2));
 
       for (size_t node_idx = 0; node_idx < n_points; ++node_idx){
         double x, y;
-        x = std::rand() % 10;
-        y = std::rand() % 10;
+        x = std::rand() % 100;
+        y = std::rand() % 100;
         // std::cin >> x >> y;
 
         // Create node
@@ -329,8 +329,8 @@ int main() {
           const double distance = Coordinates::Distance(this_node.m_Coords, other_node.m_Coords);
           edge.SetWeight(distance);
 
-          graph.Edges.push_back(std::move(edge));
-          Edge* p_last_edge = &*--graph.Edges.end();
+          graph.NodeEdges.push_back(std::move(edge));
+          Edge* p_last_edge = &*--graph.NodeEdges.end();
           this_node.m_Edges.push_back(p_last_edge);
           other_node.m_Edges.push_back(p_last_edge);
           // !!! If the order of elements in graph.Edges changes, the nodes in Node.m_Edges will have wrong edges 
@@ -338,22 +338,14 @@ int main() {
       }
 
       NodeConnector NC(std::move(graph));
-      double min_weight_bf = NC.TotalWeightBruteForce();
+      // double min_weight_bf = NC.TotalWeightBruteForce();
       NC.PrimAlgorithm();
       double min_weight_prim = NC.TotalWeight();
       NC.PrintGraph();
       std::cout << "\n";
-      std::cout << "Brute force: " << std::setprecision(10) << min_weight_bf << std::endl;
+      // std::cout << "Brute force: " << std::setprecision(10) << min_weight_bf << std::endl;
       std::cout << "Prim: " << std::setprecision(10) << min_weight_prim << std::endl;
-      if (min_weight_bf > 1.0001*min_weight_prim){
-        std::cout << "BF result worse than Prim\n";
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-      }
-      else if (min_weight_bf * 1.0001 < min_weight_prim){
-        std::cout << "BF result better than Prim\n";
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
       std::cout << "\n ___________________________ \n";
     }
   #endif

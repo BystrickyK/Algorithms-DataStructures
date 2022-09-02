@@ -1,0 +1,2 @@
+SIMD / OpenMC/ C++ AMP / MPI
+https://app.pluralsight.com/library/courses/cpp-high-performance-computing/table-of-contents
