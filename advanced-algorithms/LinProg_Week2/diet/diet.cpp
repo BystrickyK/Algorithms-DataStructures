@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <numeric>
 #include <random>
+#include <iomanip>
 using namespace std;
 
 const double EPS = 1e-6;
@@ -15,53 +16,28 @@ using Row = std::vector<double>;
 using Matrix = std::vector<Row>;
 using MatrixRowPtrs = std::vector<Row*>;
 
-Column AddVectors(const Column& vec1, const Column& vec2) 
+struct LinearSystem;
+
+enum class solution_Type
 {
-  Column result(vec1.size(), 0);
-  for (size_t i = 0; i < result.size(); ++i)
-    result[i] = vec1[i] + vec2[i];
+  NO_SOLUTION,
+  UNIQUE_SOLUTION,
+  INFINITE_SOLUTIONS
+} type;
 
-  return result;
-}
-
-Column ScalarMultiplyVector(const Column& vec, const double multiplier)
+struct Solution
 {
-  Column result(vec.size(), 0);
-  for (size_t i = 0; i < result.size(); ++i)
-    result[i] = vec[i] * multiplier;
-  return result;
-}
+  Solution(): A(Matrix()), b(Column()), used_row_indexes(vector<size_t>()), type(solution_Type::NO_SOLUTION){}
 
-Column ExtractColumnFromMatrix(const Matrix& mat, int column_idx)
-{
-  if (column_idx == -1) // take the last column
-    column_idx = mat[0].size()-1;
+  Solution(const Matrix&& A_, const Column&& b_, const vector<size_t>&& row_indexes, const solution_Type sol_type):
+  A(A_), b(b_), used_row_indexes(row_indexes), type(sol_type) {}
 
-  Column result(mat[0].size(), 0);
-  for(size_t i = 0; i < result.size(); ++i)
-    result[i] = mat[i][column_idx];
-  return result;
-}
+  Matrix A;
+  Column b;
+  vector<size_t> used_row_indexes;
 
-class Edge 
-{
-  public:
-  Edge(const Column&& origin_, const Column&& direction_):
-    m_Origin(std::move(origin_)), m_Direction(std::move(direction_)){}
-
-  Column GetPoint(const double parameter)
-  {
-    const Column delta = ScalarMultiplyVector(m_Direction, parameter);
-    const Column result = AddVectors(m_Origin, delta);
-    return result;
-  }
-
-  private:
-  const Column m_Origin;
-  const Column m_Direction;
-
+  solution_Type type;
 };
-
 
 struct LinearSystem {
     LinearSystem():
@@ -95,6 +71,82 @@ struct Position {
 
     int column;
     int row;
+};
+
+Column AddVectors(const Column& vec1, const Column& vec2) 
+{
+  Column result(vec1.size(), 0);
+  for (size_t i = 0; i < result.size(); ++i)
+    result[i] = vec1[i] + vec2[i];
+
+  return result;
+}
+
+Column ScalarMultiplyVector(const Column& vec, const double multiplier)
+{
+  Column result(vec.size(), 0);
+  for (size_t i = 0; i < result.size(); ++i)
+    result[i] = vec[i] * multiplier;
+  return result;
+}
+
+Column LineEquation(const Column& initial_point, const Column& direction, const double t)
+{
+  const Column diff = ScalarMultiplyVector(direction, t);
+  const Column result = AddVectors(initial_point, diff);
+  return result;
+}
+
+double MultiplyRowByVector(const LinearSystem& sys, size_t row_idx, const Column& vector)
+{
+  double result = 0;
+  for(size_t dim = 0; dim < vector.size(); ++dim)
+  {
+    result += sys.a[row_idx][dim] * vector[dim];
+  }
+  return result;
+}
+
+Column ExtractColumnFromMatrix(const Matrix& mat, int column_idx)
+{
+  if (column_idx == -1) // take the last column
+    column_idx = mat[0].size()-1;
+
+  Column result(mat[0].size(), 0);
+  for(size_t i = 0; i < result.size(); ++i)
+    result[i] = mat[i][column_idx];
+  return result;
+}
+
+void TweakSystem(LinearSystem& sys)
+{
+  Matrix& a = sys.a;
+  for(size_t row = 0; row < a.size(); ++row)
+  {
+    for(size_t col = 0; col < a[row].size(); ++col)
+    {
+      a[row][col] += pow(EPS, 2) * row;
+    }
+  }
+}
+
+class Edge 
+{
+  public:
+  Edge(const Column&& origin_, const Column&& direction_):
+    m_Origin(std::move(origin_)), m_Direction(std::move(direction_)){}
+
+  Column GetPoint(const double parameter)
+  {
+    const Column delta = ScalarMultiplyVector(m_Direction, parameter);
+    const Column result = AddVectors(m_Origin, delta);
+    return result;
+  }
+
+  private:
+  const Column m_Origin;
+  const Column m_Direction;
+
 };
 
 Position SelectPivotElement(
@@ -183,27 +235,6 @@ void RowReduce(LinearSystem& system)
     }
 }
 
-enum class solution_Type
-{
-  NO_SOLUTION,
-  UNIQUE_SOLUTION,
-  INFINITE_SOLUTIONS
-} type;
-
-struct Solution
-{
-  Solution(): A(Matrix()), b(Column()), used_row_indexes(vector<size_t>()), type(solution_Type::NO_SOLUTION){}
-
-  Solution(const Matrix&& A_, const Column&& b_, const vector<size_t>&& row_indexes, const solution_Type sol_type):
-  A(A_), b(b_), used_row_indexes(row_indexes), type(sol_type) {}
-
-  Matrix A;
-  Column b;
-  vector<size_t> used_row_indexes;
-
-  solution_Type type;
-};
-
 Solution SolveEquation(LinearSystem&& equation) {
     Matrix &a = equation.a;
     Column &b = equation.b;
@@ -260,12 +291,17 @@ LinearSystem PickConstrains(const Matrix& A, const Column& b, const vector<size_
 }
 
 vector<size_t> GetRandomRowIndexes(const Matrix& A)
-{
+{ 
+  static std::random_device rd;
+  static std::mt19937 g(rd());
+
   const size_t matrix_rows = A.size();
   const size_t matrix_cols = A[0].size();
 
   vector<size_t> bag(matrix_rows, -1);
+ 
   std::iota(bag.begin(), bag.end(), 0);
+  std::shuffle(bag.begin(), bag.end(), g);
   stack<size_t, std::vector<size_t>> bag_stack(bag);
 
   vector<size_t> picked_indexes;
@@ -279,9 +315,32 @@ vector<size_t> GetRandomRowIndexes(const Matrix& A)
   return picked_indexes;
 }
 
-Solution GetInitialPoint(const Matrix& A, const Column& b)
+bool ConstrainCheck(const LinearSystem& constrains, const Column& point)
+{
+  // Untested!
+  for(size_t row_idx = 0; row_idx < constrains.a.size(); ++row_idx)
+  {
+    const double constrain_result = MultiplyRowByVector(constrains, row_idx, point);
+    const double diff = constrain_result - constrains.b[row_idx];
+    if (diff > 2*EPS)
+      return false;
+  }
+
+  return true;
+}
+
+ostream& operator<<(ostream& os, const Column& col)
+{
+  for (auto i: col)
+    os << std::fixed << std::setprecision(4) << i << " ";
+  return os;
+}
+
+Solution GetInitialPoint(const LinearSystem& sys)
 {
   Solution solution;
+  const Matrix& A = sys.a;
+  const Column& b = sys.b;
 
   for(size_t attempt = 0; attempt < 1000; ++attempt)
   {
@@ -291,7 +350,11 @@ Solution GetInitialPoint(const Matrix& A, const Column& b)
 // 
     if(solution_Type::UNIQUE_SOLUTION == solution.type)
     {
-      return solution;
+      const bool valid_solution = ConstrainCheck(sys, solution.b);
+      if (valid_solution)
+      {
+        return solution;
+      }
     }
     else
     {
@@ -311,6 +374,9 @@ Solution RelaxSolution(Solution& solution, size_t relaxed_equation)
   solution.type = solution_Type::INFINITE_SOLUTIONS;
   return solution;
 }
+
+
+// Column LineEquation(const Column& initial_point, const Row& )
 
 Solution FollowEdge(Solution& edge, const LinearSystem& constrains, size_t relaxed_equation_num)
 {
@@ -332,26 +398,33 @@ Solution FollowEdge(Solution& edge, const LinearSystem& constrains, size_t relax
     relaxed_system.b.push_back(constrains.b[row]);
     relaxed_system.row_numbers.push_back(constrains.row_numbers[row]);
   }
+  std::cout << "Constraint " << relaxed_equation_idx << " relaxed" << std::endl;
+  std::cout << "InitPoint: " << vertex << std::endl;
+
   Solution solved_relaxed_equation = SolveEquation(std::move(relaxed_system));
     
   // TODO: Create a line equation from the solved relaxed equations & follow it
   Column direction = ExtractColumnFromMatrix(solved_relaxed_equation.A, -1);
+  direction = ScalarMultiplyVector(direction, -1);
   direction[direction.size()-1] = 1;
   vector<Column> line;
-  std::cout << "Constraint " << relaxed_equation_idx << " relaxed" << std::endl;
+  std::cout << "Direction: " << direction << std::endl;
   std::cout << "_________________________________________________" << std::endl;
-  for(int t = -100; t < 100; ++t)
+  for(int t = -10; t < 10; ++t)
   {
     const Column point = LineEquation(vertex, direction, t);
     line.push_back(point);
-    std::cout << t << ": ";
-    for(auto p : point)
-      std::cout << p << " ";
-    std::cout << std::endl;
+    std::cout << "--\n";
+    std::cout << t << ": " << point << std::endl;
+    std::cout << "ContraintCheck: " << (ConstrainCheck(constrains, point) ? "True" : "False") << std::endl;
   }
 
   return solved_relaxed_equation;
 }
+
+
+/*******************\
+\*******************/
 
 pair<int, vector<double>> solve_diet_problem(
     Matrix& A, 
@@ -360,14 +433,15 @@ pair<int, vector<double>> solve_diet_problem(
 {
   vector<size_t> row_numbers(A.size(), 0);
   std::iota(row_numbers.begin(), row_numbers.end(), 0);
-  const LinearSystem constrains(A, b, row_numbers);
+  LinearSystem constrains(A, b, row_numbers);
+  TweakSystem(constrains);
 
-  Solution solution = GetInitialPoint(A, b);
+  Solution solution = GetInitialPoint(constrains);
   if (solution.type == solution_Type::NO_SOLUTION)
   {
     return {-1, vector<double>(b.size(), 0)};
   }
-  Column& initial_point = solution.b;
+  Column& initial_pddoint = solution.b;
 
   for (size_t equation_idx = 0; equation_idx < solution.A[0].size(); ++equation_idx)
   {
