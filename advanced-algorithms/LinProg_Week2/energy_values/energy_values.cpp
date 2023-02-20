@@ -140,7 +140,7 @@ void RowReduce(Matrix& a, Column& b)
     }
 }
 
-Column SolveEquation(LinearSystem equation) {
+Column SolveEquation(LinearSystem& equation) {
     Matrix &a = equation.a;
     Column &b = equation.b;
 
